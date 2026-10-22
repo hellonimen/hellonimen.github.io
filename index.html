@@ -1,0 +1,406 @@
+<title>Cross-Layer Attack Chains</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* Layout: a security-assessment dossier — hero thesis, two-program split,
+     a six-vulnerability matrix split by layer, then the two chains drawn as
+     payloads crossing the LLM/Web boundary. */
+  :root {
+    --bg: #f4f6f8;
+    --surface: #ffffff;
+    --surface-2: #eef1f4;
+    --fg: #15202b;
+    --muted: #5a6b7b;
+    --line: #d6dde4;
+    --accent: #0e8b8b;        /* signal teal */
+    --accent-soft: #d3ebeb;
+    --llm: #7a3ea8;           /* LLM layer */
+    --llm-soft: #ece0f5;
+    --web: #b5651d;           /* web layer */
+    --web-soft: #f6e6d4;
+    --danger: #c23b3b;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --sans: "Public Sans", system-ui, sans-serif;
+    --display: "Archivo", system-ui, sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1419;
+      --surface: #141e26;
+      --surface-2: #1b2832;
+      --fg: #e6edf3;
+      --muted: #8da2b2;
+      --line: #273642;
+      --accent: #2fd6d6;
+      --accent-soft: #13383a;
+      --llm: #c08ef0;
+      --llm-soft: #2a1f3a;
+      --web: #e0a35c;
+      --web-soft: #352518;
+      --danger: #f0776f;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1419;
+    --surface: #141e26;
+    --surface-2: #1b2832;
+    --fg: #e6edf3;
+    --muted: #8da2b2;
+    --line: #273642;
+    --accent: #2fd6d6;
+    --accent-soft: #13383a;
+    --llm: #c08ef0;
+    --llm-soft: #2a1f3a;
+    --web: #e0a35c;
+    --web-soft: #352518;
+    --danger: #f0776f;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  .wrap {
+    max-width: 960px;
+    margin: 0 auto;
+    padding-left: max(20px, env(safe-area-inset-left, 0px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px));
+  }
+  section { padding-block: clamp(2.5rem, 6vw, 4.5rem); }
+  h1, h2, h3 { font-family: var(--display); font-weight: 800; text-wrap: balance; line-height: 1.12; margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* hero */
+  .hero { padding-top: clamp(2.5rem, 7vw, 5rem); border-bottom: 1px solid var(--line); }
+  .hero-eye { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; margin-bottom: 1.6rem; }
+  .hero h1 { font-size: clamp(2.1rem, 6.5vw, 3.9rem); }
+  .hero h1 .cross { color: var(--accent); }
+  .hero-sub {
+    margin-top: 1.5rem;
+    font-size: clamp(1.02rem, 2.4vw, 1.2rem);
+    color: var(--muted);
+    max-width: 60ch;
+  }
+  .byline {
+    margin-top: 2rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--fg);
+    display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem;
+  }
+  .byline span { color: var(--muted); }
+
+  /* program split */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+  .prog {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    padding: 1.5rem;
+    display: flex; flex-direction: column; gap: 0.7rem;
+    min-width: 0;
+  }
+  .prog .tag {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.14em;
+    text-transform: uppercase; align-self: flex-start;
+    padding: 0.2rem 0.55rem; border-radius: 999px;
+  }
+  .prog.target .tag { background: var(--web-soft); color: var(--web); }
+  .prog.tool .tag { background: var(--accent-soft); color: var(--accent); }
+  .prog h3 { font-size: 1.5rem; }
+  .prog .role { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+  .prog p { font-size: 0.93rem; color: var(--fg); }
+
+  .lead { max-width: 62ch; color: var(--muted); margin-top: 0.9rem; font-size: 1.02rem; }
+  .sec-head { margin-bottom: 1.8rem; }
+  .sec-head h2 { font-size: clamp(1.5rem, 4vw, 2.1rem); }
+
+  /* vuln matrix */
+  .layer-group { margin-top: 1.4rem; }
+  .layer-label {
+    font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.12em;
+    text-transform: uppercase; display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .dot.llm { background: var(--llm); }
+  .dot.web { background: var(--web); }
+  .vulns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; }
+  .vuln {
+    border: 1px solid var(--line); border-left-width: 3px; border-radius: 8px;
+    background: var(--surface); padding: 0.95rem 1rem; min-width: 0;
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+  .vuln.llm { border-left-color: var(--llm); }
+  .vuln.web { border-left-color: var(--web); }
+  .vuln .name { font-weight: 700; font-size: 0.98rem; }
+  .vuln .owasp { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .vuln .where { font-size: 0.82rem; color: var(--muted); }
+
+  /* chains */
+  .chain {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+    padding: 1.4rem; margin-top: 1.1rem;
+  }
+  .chain-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.9rem; margin-bottom: 1.1rem; }
+  .chain-top h3 { font-size: 1.15rem; }
+  .chain-kind { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); letter-spacing: 0.08em; }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0.5rem; }
+  .step {
+    flex: 1 1 130px; min-width: 0; border-radius: 8px; padding: 0.7rem 0.8rem;
+    display: flex; flex-direction: column; gap: 0.3rem; position: relative;
+  }
+  .step.llm { background: var(--llm-soft); }
+  .step.web { background: var(--web-soft); }
+  .step .s-layer { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; }
+  .step.llm .s-layer { color: var(--llm); }
+  .step.web .s-layer { color: var(--web); }
+  .step .s-name { font-size: 0.86rem; font-weight: 650; line-height: 1.25; }
+  .arrow { align-self: center; color: var(--muted); font-family: var(--mono); font-weight: 700; flex: none; }
+  .boundary-note {
+    margin-top: 1rem; font-size: 0.85rem; color: var(--muted);
+    padding-top: 0.9rem; border-top: 1px dashed var(--line);
+  }
+  .boundary-note b { color: var(--fg); font-weight: 700; }
+
+  /* stack + method */
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+  .panel { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 1.4rem; min-width: 0; }
+  .panel h3 { font-size: 1.1rem; margin-bottom: 0.9rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  .chip { font-family: var(--mono); font-size: 0.76rem; padding: 0.3rem 0.6rem; border-radius: 6px; background: var(--surface-2); color: var(--fg); border: 1px solid var(--line); }
+  .phases { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+  .phases li { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.9rem; }
+  .phases .k { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); min-width: 3.8rem; letter-spacing: 0.06em; }
+
+  /* access */
+  .access { border-top: 1px solid var(--line); }
+  .access-card {
+    border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2);
+    padding: 1.6rem; display: flex; flex-direction: column; gap: 0.8rem;
+  }
+  .access-card h2 { font-size: 1.3rem; }
+  .access-card p { font-size: 0.92rem; color: var(--muted); max-width: 64ch; }
+  .repo-line { font-family: var(--mono); font-size: 0.85rem; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 0.55rem 0.75rem; display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start; max-width: 100%; overflow-x: auto; }
+  .lock { color: var(--web); }
+
+  footer { padding-block: 2.5rem; border-top: 1px solid var(--line); color: var(--muted); font-family: var(--mono); font-size: 0.74rem; }
+
+  /* theme toggle */
+  .toggle {
+    position: fixed; top: calc(0.8rem + env(safe-area-inset-top, 0px));
+    right: calc(0.8rem + env(safe-area-inset-right, 0px));
+    z-index: 20; border: 1px solid var(--line); background: var(--surface);
+    color: var(--muted); font-family: var(--mono); font-size: 0.68rem;
+    letter-spacing: 0.08em; padding: 0.4rem 0.6rem; border-radius: 6px; cursor: pointer;
+  }
+  .toggle:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 620px) {
+    .split, .cols { grid-template-columns: 1fr; }
+    .vulns { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .step, .vuln { transition: transform 0.15s ease; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Public+Sans:wght@400;600;650&family=JetBrains+Mono:wght@400;600;700&display=swap">
+
+<button class="toggle" id="themeToggle" aria-label="Toggle light and dark theme">◐ THEME</button>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="hero-eye">
+      <span class="eyebrow">Final Year Project</span>
+      <span class="eyebrow">BSc (Hons) Cybersecurity · APU × De Montfort</span>
+    </div>
+    <h1>Following a payload <span class="cross">across the layer boundary</span>.</h1>
+    <p class="hero-sub">Most scanners find isolated bugs. This project builds a deliberately vulnerable AI chatbot and a black-box scanner that proves an LLM-layer weakness can causally drive a web-layer exploit, tracing one payload end to end.</p>
+    <div class="byline">
+      <span>Author</span> Ong Pei Chun (Marcus)
+      <span>·</span> Asia Pacific University
+      <span>·</span> 2026
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The two programs</span>
+      <h2>One sound tool assessing one unsound target.</h2>
+      <p class="lead">The repository holds two independent programs that talk only over HTTP. The contrast is the point.</p>
+    </div>
+    <div class="split">
+      <div class="prog target">
+        <span class="tag">The target</span>
+        <h3>DVAI</h3>
+        <span class="role">Deliberately Vulnerable AI app</span>
+        <p>A minimal Flask customer-support chatbot, insecure by design. It is the smallest app that can host all six target vulnerabilities, in the spirit of DVWA and OWASP Juice Shop. Lab use only, never deployed.</p>
+      </div>
+      <div class="prog tool">
+        <span class="tag">The tool</span>
+        <h3>AVSA</h3>
+        <span class="role">Automated Vulnerability Scanner &amp; Assessor</span>
+        <p>A clean, modular Python scanner. It treats DVAI as a remote black box, starts from one ordinary user account, discovers routes itself, and detects every finding the way a real external attacker would reproduce it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--surface-2);">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">Attack surface</span>
+      <h2>Six vulnerabilities, two layers.</h2>
+      <p class="lead">Three classic web flaws and three flaws specific to LLM-integrated apps, each mapped to its OWASP category.</p>
+    </div>
+
+    <div class="layer-group">
+      <div class="layer-label"><span class="dot web"></span> Web layer</div>
+      <div class="vulns">
+        <div class="vuln web"><span class="name">SQL Injection</span><span class="owasp">A03:2021 · Injection</span><span class="where">Login form, unparameterised query</span></div>
+        <div class="vuln web"><span class="name">IDOR</span><span class="owasp">A01:2021 · Broken Access Control</span><span class="where">Chat history served with no ownership check</span></div>
+        <div class="vuln web"><span class="name">Stored XSS</span><span class="owasp">A03:2021 · Injection</span><span class="where">Message content rendered unescaped</span></div>
+      </div>
+    </div>
+
+    <div class="layer-group">
+      <div class="layer-label"><span class="dot llm"></span> LLM layer</div>
+      <div class="vulns">
+        <div class="vuln llm"><span class="name">Prompt Injection</span><span class="owasp">LLM01:2025</span><span class="where">User input reaches the prompt unguarded</span></div>
+        <div class="vuln llm"><span class="name">System Prompt Leakage</span><span class="owasp">LLM07:2025</span><span class="where">Hidden prompt coaxed out, no filtering</span></div>
+        <div class="vuln llm"><span class="name">Insecure Output Handling</span><span class="owasp">LLM05:2025</span><span class="where">Model output stored and rendered raw</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">The contribution</span>
+      <h2>Two cross-layer attack chains.</h2>
+      <p class="lead">AVSA does not just list six findings. It captures a shared evidence artifact that links two findings into a single chain, proving the LLM flaw drove the web exploit.</p>
+    </div>
+
+    <div class="chain">
+      <div class="chain-top">
+        <h3>Chain 1 — Active delivery</h3>
+        <span class="chain-kind">LLM → WEB · primary contribution</span>
+      </div>
+      <div class="flow">
+        <div class="step llm"><span class="s-layer">LLM</span><span class="s-name">Prompt Injection</span></div>
+        <span class="arrow">→</span>
+        <div class="step llm"><span class="s-layer">LLM</span><span class="s-name">Insecure Output Handling</span></div>
+        <span class="arrow">→</span>
+        <div class="step web"><span class="s-layer">Web</span><span class="s-name">Stored XSS</span></div>
+        <span class="arrow">→</span>
+        <div class="step web"><span class="s-layer">Web</span><span class="s-name">IDOR delivery</span></div>
+      </div>
+      <p class="boundary-note">An injected instruction makes the bot emit a malicious response. <b>The output crosses the boundary:</b> it is stored raw, then served through the IDOR hole, firing as XSS in a victim's session.</p>
+    </div>
+
+    <div class="chain">
+      <div class="chain-top">
+        <h3>Chain 2 — Recon-driven</h3>
+        <span class="chain-kind">LLM → WEB</span>
+      </div>
+      <div class="flow">
+        <div class="step llm"><span class="s-layer">LLM</span><span class="s-name">System Prompt Leakage</span></div>
+        <span class="arrow">→</span>
+        <div class="step llm"><span class="s-layer">Recon</span><span class="s-name">Schema &amp; routes spilled</span></div>
+        <span class="arrow">→</span>
+        <div class="step web"><span class="s-layer">Web</span><span class="s-name">SQL Injection</span></div>
+        <span class="arrow">→</span>
+        <div class="step web"><span class="s-layer">Web</span><span class="s-name">IDOR</span></div>
+      </div>
+      <p class="boundary-note">Leaking the hidden prompt spills internal detail: table and column names and the private chat route. <b>That recon parameterises the web-layer probes</b> the scanner was never handed up front.</p>
+    </div>
+  </div>
+</section>
+
+<section style="background: var(--surface-2);">
+  <div class="wrap">
+    <div class="cols">
+      <div class="panel">
+        <h3>Methodology</h3>
+        <ul class="phases">
+          <li><span class="k">Build</span><span>Stand up DVAI and plant the six vulnerabilities, each left exploitable on purpose.</span></li>
+          <li><span class="k">Break</span><span>AVSA attacks black-box over HTTP, detects each flaw and reconstructs both chains.</span></li>
+          <li><span class="k">Defend</span><span>A hardened build and the written analysis show what correct mitigation looks like.</span></li>
+        </ul>
+        <p class="lead" style="margin-top:1.1rem; font-size:0.86rem;">Run as Scrum sprints. Scanner stance: authenticated black-box, one foothold account, no route list or schema given.</p>
+      </div>
+      <div class="panel">
+        <h3>Stack</h3>
+        <div class="chips">
+          <span class="chip">Python</span>
+          <span class="chip">Flask</span>
+          <span class="chip">SQLite</span>
+          <span class="chip">Jinja2</span>
+          <span class="chip">vanilla JS</span>
+          <span class="chip">OpenAI gpt-4.1-mini</span>
+          <span class="chip">requests</span>
+        </div>
+        <p class="lead" style="margin-top:1.1rem; font-size:0.86rem;">React was deliberately rejected: its auto-escaping would neutralise the Stored XSS the project needs to demonstrate. AVSA itself is built to clean, tested, modular standards.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="access">
+  <div class="wrap">
+    <div class="access-card">
+      <span class="eyebrow">Source access</span>
+      <h2>The code is in a private repository.</h2>
+      <p>The full source for both programs lives on GitHub. Because DVAI is intentionally vulnerable and the project involves work under an industry agreement, the repository is kept private rather than published openly. Access can be granted to interviewers on request, or walked through live in a demo.</p>
+      <span class="repo-line"><span class="lock">🔒</span> github.com/hellonimen/fyp-avsa</span>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    AVSA · Automated Security Assessment of LLM-Integrated Web Applications · Asia Pacific University, dual award with De Montfort University Leicester
+  </div>
+</footer>
+
+<script>
+  (function () {
+    var btn = document.getElementById('themeToggle');
+    var root = document.documentElement;
+    function current() {
+      var set = root.getAttribute('data-theme');
+      if (set) return set;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    try {
+      var saved = localStorage.getItem('avsa-theme');
+      if (saved) root.setAttribute('data-theme', saved);
+    } catch (e) {}
+    btn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('avsa-theme', next); } catch (e) {}
+    });
+  })();
+</script>
