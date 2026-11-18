@@ -233,7 +233,7 @@
       <span class="eyebrow">BSc (Hons) Cybersecurity · APU × De Montfort</span>
     </div>
     <h1>Following a payload <span class="cross">across the layer boundary</span>.</h1>
-    <p class="hero-sub">Most scanners find isolated bugs. This project builds a deliberately vulnerable AI chatbot and a black-box scanner that proves an LLM-layer weakness can causally drive a web-layer exploit, tracing one payload end to end.</p>
+    <p class="hero-sub">Most scanners find isolated bugs. This project builds a deliberately vulnerable AI chatbot and a black-box scanner that shows how an LLM-layer weakness can drive a web-layer exploit, tracing one payload end to end.</p>
     <div class="byline">
       <span>Author</span> Ong Pei Chun (Marcus)
       <span>·</span> Asia Pacific University
@@ -360,8 +360,10 @@
           <span class="chip">vanilla JS</span>
           <span class="chip">OpenAI gpt-4.1-mini</span>
           <span class="chip">requests</span>
+          <span class="chip">pytest</span>
+          <span class="chip">GitHub Actions</span>
         </div>
-        <p class="lead" style="margin-top:1.1rem; font-size:0.86rem;">React was deliberately rejected: its auto-escaping would neutralise the Stored XSS the project needs to demonstrate. AVSA itself is built to clean, tested, modular standards.</p>
+        <p class="lead" style="margin-top:1.1rem; font-size:0.86rem;">React was deliberately rejected: its auto-escaping would neutralise the Stored XSS the project needs to demonstrate. AVSA is backed by 102 automated tests and a GitHub Actions security gate.</p>
       </div>
     </div>
   </div>
@@ -370,10 +372,10 @@
 <section class="access">
   <div class="wrap">
     <div class="access-card">
-      <span class="eyebrow">Source access</span>
-      <h2>The code is in a private repository.</h2>
-      <p>The full source for both programs lives on GitHub. Because DVAI is intentionally vulnerable and the project involves work under an industry agreement, the repository is kept private rather than published openly. Access can be granted to interviewers on request, or walked through live in a demo.</p>
-      <span class="repo-line"><span class="lock">🔒</span> github.com/hellonimen/fyp-avsa</span>
+      <span class="eyebrow">Source code</span>
+      <h2>The code is public on GitHub.</h2>
+      <p>The full source for both programs is on GitHub, with a README, a sample report, 102 automated tests and a CI security gate that fails a build on any finding. DVAI is intentionally vulnerable, so it is for lab use only and the README says so.</p>
+      <span class="repo-line"><span class="lock">↗</span> <a href="https://github.com/hellonimen/avsa-llm-security-scanner" style="color:inherit">github.com/hellonimen/avsa-llm-security-scanner</a></span>
     </div>
   </div>
 </section>
